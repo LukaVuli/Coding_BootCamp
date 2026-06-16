@@ -39,7 +39,7 @@ Usage examples
 
 from Data.sources import famafrench as _ff
 from Data.sources import fred       as _fred
-from Data.sources import yahoofin   as _yfin
+from Data.sources import yfin       as _yfin
 
 
 class DataDefinition:

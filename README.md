@@ -1,302 +1,151 @@
-# Coding Bootcamp — Starter Codebase
+# Coding Bootcamp Starter Repo
 
-A clean, extensible Python codebase for quantitative finance work.
+This repository is the baseline codebase for the coding boot camp. The first
+student workflow is simple: open the project in PyCharm, select a Python
+interpreter, install the requirements, and run the root `main.py` file.
 
----
+## Project Layout
 
-## Table of Contents
-
-1. [Project overview](#1-project-overview)
-2. [Folder structure](#2-folder-structure)
-3. [Setup](#3-setup)
-4. [Running the demo](#4-running-the-demo)
-5. [How the codebase is organised](#5-how-the-codebase-is-organised)
-   - [Data layer](#data-layer)
-   - [Classes layer](#classes-layer)
-   - [Utilities layer](#utilities-layer)
-6. [Adding a new data source](#6-adding-a-new-data-source)
-7. [Adding a new utility function](#7-adding-a-new-utility-function)
-8. [Quick reference: common operations](#8-quick-reference-common-operations)
-
----
-
-## 1. Project overview
-
-The codebase is split into three layers:
-
-| Layer        | Purpose                                                    |
-|--------------|------------------------------------------------------------|
-| `Data/`      | Raw data ingestion — one module per external source        |
-| `Classes/`   | The `DataDefinition` class that wraps every data source    |
-| `Utilities/` | Pure helper functions (maths, statistics, date wrangling)  |
-
-`main.py` sits at the root and shows how all three layers work together.
-
----
-
-## 2. Folder structure
-
-```
-Coding_Bootcamp/
-│
-├── main.py                     ← demo script (run this first)
-├── requirements.txt
-├── README.md
-│
+```text
+Coding_BootCamp/
+├── main.py                     # Demo script to run first
+├── requirements.txt            # Python package requirements
+├── credentials.py              # Loads optional environment variables
 ├── Data/
-│   ├── data_definition.py      ← DataDefinition: the single entry-point for data
+│   ├── data_definition.py      # DataDefinition: one interface for data
 │   └── sources/
-│       ├── famafrench.py       ← Fama-French library (via pandas_datareader)
-│       ├── fred.py             ← FRED macro data (rates, inflation, recessions …)
-│       └── yahoofin.py         ← Yahoo Finance OHLCV (equities, ETFs, indices, VIX …)
-│
-├── Classes/                    ← (reserved for your own classes)
-│
+│       ├── famafrench.py       # Fama-French data via requests
+│       ├── fred.py             # FRED data via requests
+│       └── yfin.py             # Yahoo Finance data via yfinance
+├── Classes/
+│   └── MGTF_402/
+│       └── Assignment_1.py     # Intentionally blank; reserved for exercises
 └── Utilities/
-    └── tools.py                ← helper functions (returns, levels, stats …)
+    └── tools.py                # Helper functions for returns and statistics
 ```
 
----
+## Setup In PyCharm
 
-## 3. Setup
-
-### 3a. Create a virtual environment (recommended)
+1. Open PyCharm.
+2. Choose **Open** and select the `Coding_BootCamp` project folder.
+3. Select or create a virtual environment:
+   - macOS: **PyCharm > Settings > Project > Python Interpreter**
+   - Windows: **File > Settings > Project > Python Interpreter**
+   - Choose an existing interpreter or create a new virtual environment such as
+     `.venv`.
+4. Open the PyCharm terminal and install the project requirements:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate          # macOS / Linux
-.venv\Scripts\activate             # Windows
+python -m pip install -r requirements.txt
 ```
 
-### 3b. Install dependencies
+The main packages are:
 
-```bash
-pip install -r requirements.txt
+| Package | Used for |
+| --- | --- |
+| `pandas` | DataFrames and time series |
+| `numpy` | Numerical operations |
+| `scipy` | Summary statistics |
+| `matplotlib` | Plotting |
+| `requests` | Downloading Fama-French and FRED data |
+| `yfinance` | Yahoo Finance market data |
+| `python-dotenv` | Loading optional values from `.env` |
+
+## Optional FRED API Key
+
+You do not need a `FRED_API_KEY` just to open the repo, import most modules, or
+work with non-FRED examples. A FRED API key is only needed when you make live
+requests to the FRED API, such as pulling the NBER recession series.
+
+If you need live FRED data, create a `.env` file in the project root:
+
+```text
+FRED_API_KEY=your_key_here
 ```
 
-All required packages:
+Free keys are available from the FRED API documentation.
 
-| Package              | Used for                                  |
-|----------------------|-------------------------------------------|
-| `pandas`             | DataFrames, time-series alignment          |
-| `numpy`              | Numerical operations                       |
-| `scipy`              | t-statistics in `return_descriptor`        |
-| `matplotlib`         | Plotting                                   |
-| `pandas_datareader`  | Fama-French & FRED data                    |
-| `yfinance`           | Yahoo Finance OHLCV data                   |
+## Run The Demo
 
----
+Run the `main.py` file at the project root.
 
-## 4. Running the demo
+In PyCharm, right-click `main.py` and choose **Run 'main'**.
+
+From the terminal, run:
 
 ```bash
 python main.py
 ```
 
-The script will:
+You should see progress messages and printed output in the PyCharm Run window
+or terminal. The demo is designed to show how `DataDefinition`, the data source
+modules, and the utility functions work together. When the live downloads
+succeed, the chart is saved to `outputs/ff5_growth_of_dollar.png`.
 
-1. Download **Fama-French 5-Factor** daily returns (Mkt-RF, SMB, HML, RMW, CMA).
-2. Compute the **growth of $1** invested in each factor since 1990.
-3. Download the **NBER recession indicator** from FRED and shade recession periods.
-4. Download the **VIX** from Yahoo Finance.
-5. Produce a two-panel figure and save it as `ff5_growth_of_dollar.png`.
+## How Data Access Works
 
-The chart looks like this:
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  Growth of $1 — FF5 factors   (log scale, grey = NBER)  │
-│                                                          │
-│  $100 ┤              ╭──────────╮                        │
-│   $10 ┤        ╭─────╯          ╰─────────────────────   │
-│    $1 ┤────────╯                                         │
-└─────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────┐
-│  VIX                                                     │
-│   80 ┤                  ╭╮     ╭╮                        │
-│   40 ┤         ╭╮       ││╮    ││                        │
-│    0 ┤─────────╯╰───────╯╰─────╯╰──────────────────────  │
-└─────────────────────────────────────────────────────────┘
-```
-
----
-
-## 5. How the codebase is organised
-
-### Data layer
-
-`Data/sources/` contains one module per external data provider.  Each module
-exposes two things:
-
-1. **`available_*()`** — returns a list or dict of what the source offers.
-2. **A retrieval function** — downloads the data and returns a `pd.DataFrame`.
-
-```python
-# Direct usage (lower-level)
-from Data.sources import famafrench as ff
-factors = ff.data_getter('F-F_Research_Data_5_Factors_2x3_daily',
-                         start='2000-01-01', end=None)
-
-from Data.sources import fred
-recessions = fred.get_series('USRECD', start='1990-01-01')
-
-from Data.sources import yahoofin as yf_src
-spy_close = yf_src.get_close('SPY', start='2000-01-01')
-```
-
-### Classes layer
-
-`Classes/data_definition.py` provides **`DataDefinition`**, a single unified
-interface for all sources.  It accepts a `source` string and an `item`
-identifier, fetches the data, and stores it internally.
+`Data/data_definition.py` contains the `DataDefinition` class. This is the main
+entry point for requesting data:
 
 ```python
 from Data.data_definition import DataDefinition
 
-# Fama-French 5-Factor daily
-dd = DataDefinition(source='famafrench',
-                    item='F-F_Research_Data_5_Factors_2x3_daily',
-                    start='2000-01-01', end=None)
-factors = dd.extract()          # → pd.DataFrame
-
-# FRED series
-dd = DataDefinition(source='fred', item='USRECD',
-                    start='1990-01-01', end=None)
-rec = dd.extract()              # → pd.DataFrame
+# Fama-French 5-Factor daily data
+ff5 = DataDefinition(
+    source="famafrench",
+    item="F-F_Research_Data_5_Factors_2x3_daily",
+    start="2000-01-01",
+    end=None,
+).extract()
 
 # Yahoo Finance closing prices
-dd = DataDefinition(source='yfin', item='^VIX',
-                    start='1990-01-01', end=None)
-vix = dd.extract()              # → pd.Series
+spy = DataDefinition(
+    source="yfin",
+    item="SPY",
+    start="2000-01-01",
+    end=None,
+).extract()
 
-# Pass item=None to list what is available
-dd = DataDefinition(source='fred', item=None, start=None, end=None)
-print(dd.extract())             # → dict of common series IDs
+# FRED data; requires FRED_API_KEY for the live API request
+recessions = DataDefinition(
+    source="fred",
+    item="USRECD",
+    start="2000-01-01",
+    end=None,
+).extract()
 ```
 
-### Utilities layer
+Supported data sources live in `Data/sources/`:
 
-`Utilities/tools.py` contains **pure functions** — no side effects, no global
-state.  Import whatever you need:
+| Source | Module | Purpose |
+| --- | --- | --- |
+| `famafrench` | `Data/sources/famafrench.py` | Fama-French factor and portfolio data |
+| `fred` | `Data/sources/fred.py` | Federal Reserve Economic Data |
+| `yfin` | `Data/sources/yfin.py` | Yahoo Finance prices through `yfinance` |
+
+## Utilities
+
+`Utilities/tools.py` contains helper functions used by the demo, including:
+
+- `compute_levels_from_returns`
+- `compute_returns_from_levels`
+- `return_descriptor`
+- `convert_daily_to_weekly`
+- `generate_date_list`
+
+Import only what you need:
 
 ```python
-from Utilities.tools import (
-    compute_levels_from_returns,    # (1+r).cumprod()
-    compute_returns_from_levels,    # price / price.shift(1) - 1
-    return_descriptor,              # annualised stats table
-    convert_daily_to_weekly,        # resample to Friday frequency
-    generate_date_list,             # list of date strings
-)
+from Utilities.tools import compute_levels_from_returns, return_descriptor
 ```
 
----
+## Adding A New Data Source
 
-## 6. Adding a new data source
+To add another source later:
 
-**Step 1** — Create `Data/sources/my_source.py`:
+1. Create a new module in `Data/sources/`.
+2. Add the import and routing logic in `Data/data_definition.py`.
+3. Use the new source through `DataDefinition(source="your_source", ...)`.
 
-```python
-# Data/sources/my_source.py
-
-def available_data():
-    return ['series_A', 'series_B']
-
-def get_series(item, start, end=None):
-    # ... fetch and return a pd.DataFrame / pd.Series
-    pass
-```
-
-**Step 2** — Register it in `Classes/data_definition.py`.
-
-Find the `_fetch` method and add a new `elif` branch:
-
-```python
-elif src == 'my_source':
-    if self.item is None:
-        self._data = _my_source.available_data()
-    else:
-        self._data = _my_source.get_series(self.item, self.start, self.end)
-```
-
-**Step 3** — Add the import at the top of `data_definition.py`:
-
-```python
-from Data.sources import my_source as _my_source
-```
-
-That is all.  The `DataDefinition` class now supports `source='my_source'`.
-
----
-
-## 7. Adding a new utility function
-
-Open `Utilities/tools.py` and add your function.  Follow the existing
-convention:
-
-- One clear docstring explaining parameters and return value.
-- No global state or I/O — pure computation only.
-- Export it from `Utilities/__init__.py` if you want it importable directly
-  from the package.
-
-```python
-# Utilities/tools.py
-
-def annualise_return(r_periodic, freq):
-    """Convert a per-period return to an annualised return.
-
-    Parameters
-    ----------
-    r_periodic : float
-        Return per period (e.g. monthly = 0.01 for 1 %).
-    freq : int
-        Periods per year (12 for monthly, 252 for daily, 52 for weekly).
-
-    Returns
-    -------
-    float
-    """
-    return (1 + r_periodic) ** freq - 1
-```
-
----
-
-## 8. Quick reference: common operations
-
-```python
-import pandas as pd
-from Classes.data_definition import DataDefinition
-from Utilities.tools import (
-    compute_levels_from_returns,
-    compute_returns_from_levels,
-    return_descriptor,
-)
-
-# ── Pull FF5 factors (daily) ───────────────────────────────────────────────
-dd    = DataDefinition('famafrench', 'F-F_Research_Data_5_Factors_2x3_daily',
-                       '2000-01-01', None)
-ff5   = dd.extract() / 100.0          # percent → decimal
-rets  = ff5[['Mkt-RF','SMB','HML','RMW','CMA']]
-
-# ── Growth of $1 ──────────────────────────────────────────────────────────
-levels = compute_levels_from_returns(rets)
-
-# ── Summary stats (annualised, 252 trading days) ──────────────────────────
-stats  = return_descriptor(rets, freq=252)
-print(stats)
-
-# ── Back out returns from a price series ──────────────────────────────────
-prices  = DataDefinition('yfin', 'SPY', '2000-01-01', None).extract()
-spy_ret = compute_returns_from_levels(prices)
-
-# ── NBER recession dates ───────────────────────────────────────────────────
-rec = DataDefinition('fred', 'USRECD', '2000-01-01', None).extract()
-# rec['USRECD'] == 1  →  in a recession
-
-# ── Pull multiple closing prices ───────────────────────────────────────────
-from Data.sources.yahoofin import get_multiple_close
-prices = get_multiple_close(['SPY', 'TLT', 'GLD'], start='2010-01-01')
-```
-
----
-
-*Happy coding!*
+Keep source modules focused on downloading/parsing data, and keep calculations
+in `Utilities/tools.py` or your exercise files.

@@ -2,7 +2,7 @@
 famafrench.py
 -------------
 Downloads Fama-French datasets directly from Kenneth French's data library
-at Dartmouth (no pandas_datareader required).
+at Dartmouth using requests.
 
 Data is fetched as a zip file, extracted, and parsed into a DataFrame.
 Returns are in percentage points — divide by 100 to get decimals.

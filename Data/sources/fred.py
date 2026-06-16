@@ -2,8 +2,9 @@
 fred.py
 -------
 Fetches FRED (Federal Reserve Economic Data) series directly via the
-FRED REST API using requests.  Requires a free API key stored in .env
-as FRED_API_KEY.  Get one at: https://fred.stlouisfed.org/docs/api/api_key.html
+FRED REST API using requests.  Live downloads require a free API key stored
+in .env as FRED_API_KEY.  Get one at:
+https://fred.stlouisfed.org/docs/api/api_key.html
 
 Common series used in this bootcamp
 -------------------------------------
@@ -27,6 +28,7 @@ Usage
 import warnings
 warnings.filterwarnings('ignore')
 
+import os
 import pandas as pd
 import requests
 
@@ -58,6 +60,30 @@ def available_series():
     return COMMON_SERIES
 
 
+def _validated_api_key() -> str:
+    """Return a usable FRED API key or raise a beginner-friendly error."""
+    api_key = os.environ.get("FRED_API_KEY") or FRED_API_KEY
+    api_key = (api_key or "").strip()
+
+    placeholders = {
+        "XXX",
+        "YOUR_KEY_HERE",
+        "YOUR_FRED_API_KEY",
+        "YOUR_FRED_API_KEY_HERE",
+        "FRED_API_KEY",
+    }
+    if not api_key or api_key.upper() in placeholders:
+        raise ValueError(
+            "FRED_API_KEY is not configured, so FRED data cannot be downloaded.\n"
+            "You can still call available_series() without a key.\n"
+            "To fetch data, get a free key at "
+            "https://fred.stlouisfed.org/docs/api/api_key.html and set it in "
+            ".env as: FRED_API_KEY=your_key_here"
+        )
+
+    return api_key
+
+
 def get_series(series_id: str, start: str = '1900-01-01', end=None) -> pd.DataFrame:
     """Download a FRED series via the REST API.
 
@@ -75,9 +101,11 @@ def get_series(series_id: str, start: str = '1900-01-01', end=None) -> pd.DataFr
     pd.DataFrame
         Single-column DataFrame indexed by date.
     """
+    api_key = _validated_api_key()
+
     params = {
         'series_id':           series_id,
-        'api_key':             FRED_API_KEY,
+        'api_key':             api_key,
         'file_type':           'json',
         'observation_start':   start,
     }
