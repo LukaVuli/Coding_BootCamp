@@ -12,7 +12,12 @@ What this script does
 3. Downloads the NBER recession indicator (daily) from FRED and shades
    recession periods on the chart.
 4. Downloads the VIX from Yahoo Finance and plots it in a second panel.
-5. Saves the figure as ``outputs/ff5_growth_of_dollar.png``.
+5. Shows the figure and saves it to your Desktop as
+   ``ff5_growth_of_dollar.png``.
+
+Steps 3 and 4 are optional. If the FRED key is missing or a download
+fails, the script prints the setup guidance, skips that piece, and still
+draws (and displays) the chart.
 
 Run
 ---
@@ -31,7 +36,6 @@ import sys
 import tempfile
 from pathlib import Path
 
-PROJECT_DIR = Path(__file__).resolve().parent
 os.environ.setdefault(
     'MPLCONFIGDIR',
     str(Path(tempfile.gettempdir()) / 'coding_bootcamp_matplotlib'),
@@ -52,8 +56,22 @@ from Utilities.tools import (
 START_DATE  = '1990-01-01'   # beginning of the analysis window
 END_DATE    = None            # None  →  most recent available data
 SAVE_FIGURE = True
-FIGURE_PATH = PROJECT_DIR / 'outputs' / 'ff5_growth_of_dollar.png'
 FREQ        = 252             # trading days per year (for annualisation)
+
+
+def desktop_dir():
+    """Return the user's Desktop folder, whatever machine this runs on.
+
+    ``Path.home()`` resolves to the current user's home folder on macOS,
+    Windows, and Linux, so nothing here is hard-coded to one computer. If
+    there is no Desktop folder (some Linux setups, or a OneDrive-redirected
+    Windows profile), fall back to the home folder itself.
+    """
+    desktop = Path.home() / 'Desktop'
+    return desktop if desktop.is_dir() else Path.home()
+
+
+FIGURE_PATH = desktop_dir() / 'ff5_growth_of_dollar.png'
 
 FACTOR_COLORS = {
     'Mkt-RF': '#1f77b4',   # blue
@@ -174,8 +192,8 @@ def print_done(message):
     print(f"   Done: {message}")
 
 
-def print_friendly_error(error):
-    print("\nThe demo stopped before the chart could be created.")
+def print_error_body(error):
+    """Print the problem, the suggestions, and the technical detail."""
     print(f"Problem: {error}")
 
     if error.suggestions:
@@ -189,7 +207,21 @@ def print_friendly_error(error):
             f"{type(error.detail).__name__}: {error.detail}"
         )
 
+
+def print_friendly_error(error):
+    print("\nThe demo stopped before the chart could be created.")
+    print_error_body(error)
     print("\nAfter fixing that, press Run again.")
+
+
+def print_friendly_warning(error, skipped):
+    """Report an optional dataset that failed, then keep the demo running."""
+    print("\n   Heads up: this part of the demo was skipped.")
+    print("   " + "-" * 30)
+    print_error_body(error)
+    print(f"\nThe chart will still be drawn, just without {skipped}.")
+    print("Fix the item above and press Run again to get the full chart.")
+    print("   " + "-" * 30)
 
 
 def get_data_definition_class():
@@ -231,6 +263,29 @@ def load_live_data(data_definition_class, source, item, label):
         )
 
     return data
+
+
+def load_optional_dataset(loader, skipped):
+    """Run *loader*; on a friendly failure, warn and return ``None``.
+
+    Used for the extras (recession shading, VIX) so a missing API key or a
+    flaky download never stops the chart from being drawn.
+    """
+    try:
+        return loader()
+    except DemoDataError as error:
+        print_friendly_warning(error, skipped)
+        return None
+    except Exception as error:
+        print_friendly_warning(
+            DemoDataError(
+                f"Something unexpected happened while loading {skipped}.",
+                guidance_for_error('setup', error),
+                error,
+            ),
+            skipped,
+        )
+        return None
 
 
 def describe_time_series(data):
@@ -379,7 +434,12 @@ def prepare_vix_data(vix_raw):
 
 
 def align_plot_data(levels, usrecd, vix):
-    """Trim recession and VIX data to the factor-data date range."""
+    """Trim recession and VIX data to the factor-data date range.
+
+    ``usrecd`` and ``vix`` are optional: either may be ``None`` (the download
+    was skipped) and either may end up empty after trimming, in which case
+    ``None`` is returned for that panel and the chart simply leaves it out.
+    """
     if levels.empty:
         raise DemoDataError(
             "The factor growth table is empty.",
@@ -387,19 +447,18 @@ def align_plot_data(levels, usrecd, vix):
         )
 
     t0, t1 = levels.index[0], levels.index[-1]
-    usrecd_plot = usrecd.loc[t0:t1]
-    vix_plot = vix.loc[t0:t1]
 
-    if usrecd_plot.empty:
-        raise DemoDataError(
-            "The recession data does not overlap the Fama-French date range.",
-            ["Check the FRED response and the START_DATE/END_DATE settings."],
-        )
-    if vix_plot.empty:
-        raise DemoDataError(
-            "The VIX data does not overlap the Fama-French date range.",
-            ["Check the Yahoo response and the START_DATE/END_DATE settings."],
-        )
+    usrecd_plot = None if usrecd is None else usrecd.loc[t0:t1]
+    if usrecd_plot is not None and usrecd_plot.empty:
+        print("   Note: recession data does not overlap the factor dates, "
+              "so shading is skipped.")
+        usrecd_plot = None
+
+    vix_plot = None if vix is None else vix.loc[t0:t1]
+    if vix_plot is not None and vix_plot.empty:
+        print("   Note: VIX data does not overlap the factor dates, "
+              "so the VIX panel is skipped.")
+        vix_plot = None
 
     return usrecd_plot, vix_plot
 
@@ -413,7 +472,7 @@ def shade_recessions(ax, usrecd: pd.DataFrame):
     usrecd : pd.DataFrame
         Single-column DataFrame with the USRECD series (1 = recession).
     """
-    if usrecd.empty:
+    if usrecd is None or usrecd.empty:
         return
 
     col          = usrecd.columns[0]
@@ -497,28 +556,40 @@ def main():
         # -------------------------------------------------------------------
         # 5.  NBER recession indicator from FRED
         # -------------------------------------------------------------------
+        # This one is optional: no FRED key just means no recession shading.
         print("\n5. Downloading NBER recession data from FRED...")
-        usrecd_raw = load_live_data(
-            data_definition_class,
-            source='fred',
-            item='USRECD',
-            label='NBER recession indicator from FRED',
-        )
-        usrecd = prepare_recession_data(usrecd_raw)
-        print_done(f"Loaded {describe_time_series(usrecd)}.")
+
+        def load_recessions():
+            usrecd_raw = load_live_data(
+                data_definition_class,
+                source='fred',
+                item='USRECD',
+                label='NBER recession indicator from FRED',
+            )
+            return prepare_recession_data(usrecd_raw)
+
+        usrecd = load_optional_dataset(load_recessions, 'recession shading')
+        if usrecd is not None:
+            print_done(f"Loaded {describe_time_series(usrecd)}.")
 
         # -------------------------------------------------------------------
         # 6.  VIX from Yahoo Finance
         # -------------------------------------------------------------------
+        # Also optional: without it the chart drops the lower VIX panel.
         print("\n6. Downloading VIX from Yahoo Finance...")
-        vix_raw = load_live_data(
-            data_definition_class,
-            source='yfin',
-            item='^VIX',
-            label='VIX from Yahoo Finance',
-        )
-        vix = prepare_vix_data(vix_raw)
-        print_done(f"Loaded {describe_time_series(vix)}.")
+
+        def load_vix():
+            vix_raw = load_live_data(
+                data_definition_class,
+                source='yfin',
+                item='^VIX',
+                label='VIX from Yahoo Finance',
+            )
+            return prepare_vix_data(vix_raw)
+
+        vix = load_optional_dataset(load_vix, 'the VIX panel')
+        if vix is not None:
+            print_done(f"Loaded {describe_time_series(vix)}.")
 
         # -------------------------------------------------------------------
         # 7.  Align date ranges to the FF5 window
@@ -534,12 +605,18 @@ def main():
         print("\n8. Building the chart...")
         try:
             fig = plt.figure(figsize=(15, 9))
-            gs  = GridSpec(2, 1, figure=fig,
-                           height_ratios=[3, 1],
-                           hspace=0.04)          # tiny gap between panels
 
-            ax_top = fig.add_subplot(gs[0])
-            ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
+            if vix_plot is None:
+                # No VIX data, so the growth panel gets the whole figure.
+                ax_top = fig.add_subplot(1, 1, 1)
+                ax_bot = None
+            else:
+                gs  = GridSpec(2, 1, figure=fig,
+                               height_ratios=[3, 1],
+                               hspace=0.04)      # tiny gap between panels
+
+                ax_top = fig.add_subplot(gs[0])
+                ax_bot = fig.add_subplot(gs[1], sharex=ax_top)
 
             # ── Top panel: Growth of $1 ──────────────────────────────────
             for factor, color in FACTOR_COLORS.items():
@@ -556,8 +633,11 @@ def main():
 
             ax_top.set_yscale('log')
             ax_top.set_ylabel('Growth of $1  (log scale)', fontsize=12)
+            title = 'Fama-French 5 Factors — Growth of $1'
+            if usrecd_plot is not None:
+                title += ' with NBER Recession Shading'
             ax_top.set_title(
-                'Fama-French 5 Factors — Growth of $1 with NBER Recession Shading',
+                title,
                 fontsize=14, fontweight='bold', pad=12,
             )
             ax_top.grid(True, which='both', alpha=0.25, linestyle='--')
@@ -565,51 +645,70 @@ def main():
                 plt.FuncFormatter(lambda y, _: f'${y:.2f}')
             )
 
-            # Build a custom legend that includes the recession patch
-            rec_patch = mpatches.Patch(
-                color='grey',
-                alpha=0.35,
-                label='NBER Recession',
-            )
+            # Build a custom legend, adding the recession patch when shaded
             handles, labels_ = ax_top.get_legend_handles_labels()
-            ax_top.legend(handles + [rec_patch], labels_ + ['NBER Recession'],
+            if usrecd_plot is not None:
+                handles = handles + [mpatches.Patch(
+                    color='grey',
+                    alpha=0.35,
+                    label='NBER Recession',
+                )]
+                labels_ = labels_ + ['NBER Recession']
+            ax_top.legend(handles, labels_,
                           loc='upper left', fontsize=10, framealpha=0.9)
 
-            # Share x-axis with bottom panel
-            plt.setp(ax_top.get_xticklabels(), visible=False)
+            # ── Bottom panel: VIX (only when we have VIX data) ──────────
+            if ax_bot is None:
+                ax_top.set_xlabel('Date', fontsize=12)
+            else:
+                # Share x-axis with bottom panel
+                plt.setp(ax_top.get_xticklabels(), visible=False)
 
-            # ── Bottom panel: VIX ───────────────────────────────────────
-            ax_bot.fill_between(vix_plot.index, vix_plot.to_numpy(),
-                                color='#7f7f7f', alpha=0.5, label='VIX')
-            ax_bot.plot(vix_plot.index, vix_plot.to_numpy(),
-                        color='black', linewidth=0.8, alpha=0.8)
+                ax_bot.fill_between(vix_plot.index, vix_plot.to_numpy(),
+                                    color='#7f7f7f', alpha=0.5, label='VIX')
+                ax_bot.plot(vix_plot.index, vix_plot.to_numpy(),
+                            color='black', linewidth=0.8, alpha=0.8)
 
-            shade_recessions(ax_bot, usrecd_plot)
+                shade_recessions(ax_bot, usrecd_plot)
 
-            # Annotate notable VIX spikes
-            notable = {
-                '2008-11-20': 'GFC',
-                '2020-03-18': 'COVID',
-            }
-            for date_str, label in notable.items():
-                dt = pd.Timestamp(date_str)
-                if dt in vix_plot.index:
-                    spike = vix_plot.loc[dt]
-                    ax_bot.annotate(
-                        label,
-                        xy=(dt, spike),
-                        xytext=(0, 10),
-                        textcoords='offset points',
-                        fontsize=8,
-                        ha='center',
-                        arrowprops=dict(arrowstyle='->', color='black', lw=0.8),
-                    )
+                # Annotate notable VIX spikes
+                notable = {
+                    '2008-11-20': 'GFC',
+                    '2020-03-18': 'COVID',
+                }
+                for date_str, label in notable.items():
+                    dt = pd.Timestamp(date_str)
+                    if dt in vix_plot.index:
+                        spike = vix_plot.loc[dt]
+                        ax_bot.annotate(
+                            label,
+                            xy=(dt, spike),
+                            xytext=(0, 10),
+                            textcoords='offset points',
+                            fontsize=8,
+                            ha='center',
+                            arrowprops=dict(arrowstyle='->', color='black',
+                                            lw=0.8),
+                        )
 
-            ax_bot.set_ylabel('VIX', fontsize=12)
-            ax_bot.set_xlabel('Date', fontsize=12)
-            ax_bot.set_ylim(bottom=0)
-            ax_bot.grid(True, alpha=0.25, linestyle='--')
-            ax_bot.legend(loc='upper left', fontsize=10, framealpha=0.9)
+                ax_bot.set_ylabel('VIX', fontsize=12)
+                ax_bot.set_xlabel('Date', fontsize=12)
+                ax_bot.set_ylim(bottom=0)
+                ax_bot.grid(True, alpha=0.25, linestyle='--')
+                ax_bot.legend(loc='upper left', fontsize=10, framealpha=0.9)
+
+            # Say on the chart itself which pieces are missing, if any
+            missing = []
+            if usrecd_plot is None:
+                missing.append('NBER recession shading (needs a FRED_API_KEY)')
+            if vix_plot is None:
+                missing.append('VIX panel (Yahoo Finance download failed)')
+            if missing:
+                fig.text(
+                    0.5, 0.01,
+                    'Not shown: ' + '; '.join(missing),
+                    ha='center', fontsize=9, style='italic', color='#555555',
+                )
 
             # ── Save & show ──────────────────────────────────────────────
             plt.tight_layout()
@@ -617,11 +716,10 @@ def main():
             if SAVE_FIGURE:
                 FIGURE_PATH.parent.mkdir(parents=True, exist_ok=True)
                 fig.savefig(FIGURE_PATH, dpi=150, bbox_inches='tight')
-                plt.close(fig)
                 print_done(f"Chart saved to {FIGURE_PATH}")
-            else:
-                print_done("Chart is ready to display.")
-                plt.show()
+
+            print_done("Showing the chart; close the window to finish.")
+            plt.show()
 
         except Exception as error:
             raise DemoDataError(
@@ -634,6 +732,14 @@ def main():
             ) from error
 
         print("\nSuccess! The demo finished.")
+        if usrecd_plot is None:
+            print("Reminder: add a FRED_API_KEY to get the recession shading.")
+            print("Get a free key at "
+                  "https://fred.stlouisfed.org/docs/api/api_key.html and put it")
+            print("in .env as: FRED_API_KEY=your_key_here")
+        if vix_plot is None:
+            print("Reminder: the VIX panel was skipped; "
+                  "retry later or update yfinance.")
         if SAVE_FIGURE:
             print(f"Open the chart here: {FIGURE_PATH}")
         return 0
