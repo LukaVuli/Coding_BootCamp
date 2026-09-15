@@ -1,1 +1,12 @@
 .env
+
+# Generated data and output. Everything the project writes goes to your
+# Desktop, never in here — but these keep stray files out of git anyway.
+*.csv
+*.png
+__pycache__/
+.ipynb_checkpoints/
+
+# Local environment and IDE settings
+.venv/
+.idea/

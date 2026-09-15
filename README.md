@@ -1,8 +1,17 @@
 # Coding Bootcamp Starter Repo
 
-This repository is the baseline codebase for the coding boot camp. The first
-student workflow is simple: open the project in PyCharm, select a Python
-interpreter, install the requirements, and run the root `main.py` file.
+This repository is the baseline codebase for the coding boot camp. There are two
+things in it:
+
+1. **`Learn_To_Code/`** — four interactive notebooks that teach you to code, from
+   variables through to Monte Carlo simulation. This is where students start.
+   See [The Learn_To_Code Workbooks](#the-learn_to_code-workbooks).
+2. **The working codebase** — `main.py`, `Data/`, `Utilities/`: a small but real
+   research setup that pulls market data and analyses it.
+
+The first workflow is simple: open the project in PyCharm, select a Python
+interpreter, install the requirements, and run the root `main.py` file to check
+everything works. Then open the first notebook.
 
 You need **Python 3.9 or newer** (3.11+ recommended).
 
@@ -15,6 +24,13 @@ Coding_BootCamp/
 ├── credentials.py              # Loads optional environment variables
 ├── .gitignore                  # Keeps your .env out of git
 ├── LICENSE
+├── Learn_To_Code/              # The student workbooks — start here
+│   ├── 1.Coding Essentials.ipynb
+│   ├── 2.Plotting some data.ipynb
+│   ├── 3.Regression.ipynb
+│   ├── 4.Monte Carlo Simulation.ipynb
+│   ├── workbook.py             # check() / hint() / todo() — the grader
+│   └── generate_data.py        # builds the workbook CSVs on your Desktop
 ├── Data/
 │   ├── data_definition.py      # DataDefinition: one interface for data
 │   └── sources/
@@ -57,6 +73,8 @@ The main packages are:
 | `requests` | Downloading Fama-French and FRED data |
 | `yfinance` | Yahoo Finance market data |
 | `python-dotenv` | Loading optional values from `.env` |
+| `statsmodels` | Regression with standard errors (notebook 3) |
+| `jupyterlab`, `ipykernel` | Running the notebooks |
 
 ## Optional FRED API Key
 
@@ -135,6 +153,116 @@ The settings at the top of `main.py` are the first things worth changing:
 | `Heads up: this part of the demo was skipped.` | An optional download failed. The chart still appears. Read the suggestions printed underneath. |
 | `ModuleNotFoundError` | The requirements are not installed in the interpreter PyCharm is using. Redo step 4 of Setup. |
 | The script seems stuck after step 8 | The chart window is open, possibly behind PyCharm. Close it to finish. |
+
+## The Learn_To_Code Workbooks
+
+`Learn_To_Code/` holds four notebooks. They are **workbooks, not lectures**: you
+read a little, run a little, then fill in the gaps yourself and have your answer
+checked. Work through them in order — each one assumes the one before it.
+
+| # | Notebook | What it teaches | Exercises |
+| - | -------- | --------------- | --------- |
+| 1 | Coding Essentials | variables and types, f-strings, lists and dicts, `if`/`for`/`while`, comprehensions, functions, reading tracebacks, NumPy and vectorisation, pandas, classes, imports | 13 |
+| 2 | Plotting some data | one figure revised ten times — labels, legends, colour, scales, annotation; then scatter, histogram, bar, small multiples, twin axes, a house style, and saving properly | 7 |
+| 3 | Regression | OLS by hand in NumPy — design matrix, `(X'X)⁻¹X'y`, residuals, R², standard errors, t-stats — then `statsmodels`, formulas, robust and HAC errors, dummies and interactions, rolling windows | 10 |
+| 4 | Monte Carlo Simulation | seeded randomness, estimating a probability from a card deck, checking it against exact combinatorics, the standard error of a simulation, vectorising 100,000 trials, bankroll paths and risk of ruin | 9 |
+
+The topics deliberately do not overlap. Notebook 1 contains no plotting,
+notebook 2 no statistics, notebook 3 no simulation.
+
+### Running them
+
+Install the requirements (step 4 of Setup above), then from the project root:
+
+```bash
+python -m jupyter lab
+```
+
+That opens a browser tab. Navigate into `Learn_To_Code/` and open notebook 1.
+
+PyCharm Professional opens `.ipynb` files directly, so you can also just
+double-click the file in the project tree. PyCharm Community cannot, so use the
+command above.
+
+`Shift + Enter` runs the current cell and moves to the next one. Run the cells in
+order, top to bottom — a notebook remembers everything you have run, so a cell
+can fail simply because you skipped the one above it. When things get confusing,
+**Kernel → Restart Kernel and Run All Cells**.
+
+### How the exercises work
+
+Every section ends with a **Your turn** cell containing gaps and a check:
+
+```python
+ticker = todo()          # <- replace this with your answer
+shares = todo()
+
+check('1.1', ticker, shares)
+```
+
+Run it and you get either
+
+```text
+✅  Exercise 1.1 — correct.
+```
+
+or a specific explanation of what is wrong — not just "incorrect", but
+`shares should be an int, you gave float (250.0)`. Three helpers, all imported by
+the setup cell at the top of each notebook:
+
+| Helper | Does |
+| ------ | ---- |
+| `check('1.1', ...)` | grades your answer and says what is wrong |
+| `hint('1.1')` | a nudge, without grading anything |
+| `todo()` | the placeholder you replace. It absorbs whatever you do to it, so a half-finished cell still runs down to its check instead of stopping on a traceback |
+
+The grader lives in `Learn_To_Code/workbook.py`. Nothing in it is magic — it is a
+dictionary of small functions that look at your answer. You are welcome to read
+it, though doing so is a slower way to find the answers than just trying them.
+
+### About the data
+
+**Nothing is written into the project folder.** The workbooks read two CSV files
+that live on your Desktop:
+
+```text
+~/Desktop/Coding_BootCamp_Data/
+├── stock_prices.csv     # simulated daily panel (notebooks 1 and 2)
+└── factor_data.csv      # simulated monthly factors (notebook 3)
+```
+
+The setup cell at the top of every notebook calls `ensure_data()`, which builds
+them the first time and then leaves them alone. Delete that folder whenever you
+like — it rebuilds on the next run, and because the random seeds are fixed you get
+byte-identical files back. Nothing generated ever ends up in git. The same applies
+to the figures you save in notebook 2 and the chart `main.py` writes: Desktop, not
+the repository.
+
+The data is **simulated, not real**: six fictional companies, three fictional
+funds, invented factor returns. That is deliberate. Simulated data has true
+parameters that are written down, so in notebook 3 you can fit a regression and
+check whether your code recovered the values that actually generated the data. You
+cannot do that with real data, and it is the fastest way to discover that your
+regression is subtly wrong. `Learn_To_Code/generate_data.py` shows exactly how the
+files are built and lists the true parameters.
+
+To rebuild the data by hand at any point:
+
+```bash
+python Learn_To_Code/generate_data.py
+```
+
+When you want real data, use `DataDefinition` — see the next section. Notebooks 3
+and 4 end by pointing you at it.
+
+### If a notebook will not start
+
+| What you see | What it means |
+| ------------ | ------------- |
+| `ModuleNotFoundError: No module named 'workbook'` | the notebook has been moved away from `workbook.py`. They have to stay in the same folder. |
+| `ModuleNotFoundError: No module named 'statsmodels'` | the requirements are not installed in the interpreter Jupyter is using. Redo step 4 of Setup. |
+| `FileNotFoundError` on a CSV | run the setup cell at the top of the notebook — `ensure_data()` rebuilds the files. |
+| every exercise says "you left the placeholder in place" | that is correct — you have not filled them in yet. |
 
 ## How Data Access Works
 
